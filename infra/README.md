@@ -15,6 +15,8 @@ Then follow these steps:
 5. Set your desired AWS region with `pulumi config set aws:region <region-name>`.
 6. Run `pulumi up`.
 
+**NOTE:** You'll see `Pulumi.test.yaml` and `Pulumi.prod.yaml` stack files in this repository. These are here for illustrative purposes (to tie back to the Pulumi blog series) and will not impact your ability to use the steps above _unless_ you use a stack name of "test" or "prod" for your stack.
+
 After the stack is finished deploying, use `pulumi stack output` to retrieve the Kubeconfig for the newly-created EKS cluster:
 
 ```shell
