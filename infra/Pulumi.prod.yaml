@@ -1,4 +1,5 @@
 config:
+  aws:region: us-west-2
   zephyr-eks:desiredClusterSize: "3"
   zephyr-eks:eksNodeInstanceType: t3.medium
   zephyr-eks:maxClusterSize: "6"
