@@ -4,12 +4,12 @@ import * as awsx from "@pulumi/awsx";
 
 // Grab some configuration values
 const config = new pulumi.Config();
-const eksOrgName = config.get("eksOrgName");
-const eksProjName = config.get("eksProjName");
-const eksStackName = config.get("eksStackName");
+const k8sOrgName = config.require("k8sOrgName");
+const k8sProjName = config.require("k8sProjName");
+const k8sStackName = config.require("k8sStackName");
 
 // Create a StackReference to get Kubeconfig from base stack
-const kubeSr = new pulumi.StackReference(`${eksOrgName}/${eksProjName}/${eksStackName}`);
+const kubeSr = new pulumi.StackReference(`${k8sOrgName}/${k8sProjName}/${k8sStackName}`);
 const baseKubeconfig = kubeSr.getOutput("kubeconfig");
 
 // Create a new Kubernetes provider for the EKS cluster
@@ -1290,8 +1290,8 @@ const rabbitmqDeployment = new k8s.apps.v1.Deployment("rabbitmq-deployment", {
 
 const uiImage = new awsx.ecr.Image("ui-image", {
     repositoryUrl: repository.url,
-    dockerfile: "/Users/slowe/Work/Code/Repos/zephyr-app/images/java17/Dockerfile",
-    path: "/Users/slowe/Work/Code/Repos/zephyr-app/src/ui",
+    dockerfile: "../images/java17/Dockerfile",
+    path: "../src/ui",
     args: {
         JAR_PATH: "target/ui-0.0.1-SNAPSHOT.jar",
     },

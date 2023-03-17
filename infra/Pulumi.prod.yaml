@@ -1,7 +1,10 @@
 config:
   aws:region: us-west-2
-  zephyr-eks:desiredClusterSize: "3"
-  zephyr-eks:eksNodeInstanceType: t3.medium
-  zephyr-eks:maxClusterSize: "6"
-  zephyr-eks:minClusterSize: "3"
-  zephyr-eks:vpcNetworkCidr: 10.0.0.0/16
+  zephyr-app:desiredClusterSize: "3"
+  zephyr-app:eksNodeInstanceType: t3.medium
+  zephyr-app:k8sOrgName: zephyr
+  zephyr-app:k8sProjName: zephyr-k8s
+  zephyr-app:k8sStackName: prod
+  zephyr-app:maxClusterSize: "6"
+  zephyr-app:minClusterSize: "3"
+  zephyr-app:vpcNetworkCidr: 10.0.0.0/16
