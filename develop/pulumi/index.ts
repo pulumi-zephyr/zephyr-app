@@ -3,7 +3,7 @@ import * as docker from "@pulumi/docker";
 
 // Get configuration values
 const config = new pulumi.Config();
-const srcRepoPath = config.require("srcRepoPath");
+const srcRepoPath = config.get("srcRepoPath") || "../..";
 const mySqlPassword = config.require("mySqlPassword");
 const assetsFlag = config.get("assetsFlag") || "build";
 const cartsFlag = config.get("cartsFlag") || "build";
