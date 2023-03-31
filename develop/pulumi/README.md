@@ -7,6 +7,7 @@ Before you can use this Pulumi program, you will need:
 1. The `pulumi` CLI installed
 2. A local Docker daemon running (using Docker Desktop for Windows/Mac is fine)
 3. NodeJS installed (this was tested with Node 18)
+4. Version 4.1 or greater of the Pulumi Docker provider (should be installed automatically when you run `pulumi up`)
 
 Once the prerequisites are met, then set configuration values (see the section titled "Configuration Values") and run `pulumi up`. Within a few minutes, all the containers will be deployed locally. You can access the Zephyr online store by navigating to `http://localhost:8888`.
 
