@@ -2,15 +2,28 @@ import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
 import * as awsx from "@pulumi/awsx";
 
+// Get the name of the current stack
+const currentStackName = pulumi.getStack();
+
 // Grab some configuration values
 const config = new pulumi.Config();
-const k8sOrgName = config.require("k8sOrgName");
-const k8sProjName = config.require("k8sProjName");
-const k8sStackName = config.require("k8sStackName");
+const platformOrgName = config.get("platformOrgName") || "zephyr";
+const platformProjName = config.get("platformProjName")  || "zephyr-k8s";
+const platformStackName = config.get("platformStackName") || currentStackName;
+const dataOrgName = config.get("dataOrgName") || "zephyr";
+const dataProjName = config.get("dataProjName") || "zephyr-data";
+const dataStackName = config.get("dataStackName") || currentStackName;
 
-// Create a StackReference to get Kubeconfig from base stack
-const kubeSr = new pulumi.StackReference(`${k8sOrgName}/${k8sProjName}/${k8sStackName}`);
+// Create StackReferences to get information from other stacks
+const kubeSr = new pulumi.StackReference(`${platformOrgName}/${platformProjName}/${platformStackName}`);
 const baseKubeconfig = kubeSr.getOutput("kubeconfig");
+const dataSr = new pulumi.StackReference(`${dataOrgName}/${dataProjName}/${dataStackName}`);
+const catalogDbEndpoint = dataSr.getOutput("catalogDbEndpoint");
+const ordersDbEndpoint = dataSr.getOutput("ordersDbEndpoint");
+
+// Build database connection strings for catalog and orders
+let catalogConnectionString = catalogDbEndpoint.apply(catalogDbEndpoint => catalogDbEndpoint + ":3306");
+let ordersConnectionString = ordersDbEndpoint.apply(ordersDbEndpoint => "jdbc:mariadb://" + ordersDbEndpoint + ":3306/orders");
 
 // Create a new Kubernetes provider for the EKS cluster
 const eksProvider = new k8s.Provider("eks-provider", {kubeconfig: baseKubeconfig});
@@ -40,12 +53,6 @@ const catalogLabels = {
     "app.kubernetes.io/managed-by": "pulumi"
 }
 
-const catalogDbLabels = {
-    "app.kubernetes.io/name": "zephyr-app",
-    "app.kubernetes.io/component": "catalog-mysql",
-    "app.kubernetes.io/managed-by": "pulumi"
-}
-
 const checkoutLabels = {
     "app.kubernetes.io/name": "zephyr-app",
     "app.kubernetes.io/component": "checkout",
@@ -61,12 +68,6 @@ const checkoutDbLabels = {
 const ordersLabels = {
     "app.kubernetes.io/name": "zephyr-app",
     "app.kubernetes.io/component": "orders",
-    "app.kubernetes.io/managed-by": "pulumi"
-}
-
-const ordersDbLabels = {
-    "app.kubernetes.io/name": "zephyr-app",
-    "app.kubernetes.io/component": "orders-mysql",
     "app.kubernetes.io/managed-by": "pulumi"
 }
 
@@ -274,10 +275,12 @@ const uiConfigMap = new k8s.core.v1.ConfigMap("ui-configmap", {
 // Define some Secrets for application components
 const catalogDbSecret = new k8s.core.v1.Secret("catalog-db-secret", {
     data: {
-        endpoint: "Y2F0YWxvZy1teXNxbDozMzA2",
         name: "Y2F0YWxvZw==",
         password: "ZGVmYXVsdF9wYXNzd29yZA==",
-        username: "Y2F0YWxvZ191c2Vy",
+        username: "Y2F0YWxvZ19tYXN0ZXI=",
+    },
+    stringData: {
+        endpoint: catalogConnectionString,
     },
     metadata: {
         labels: catalogLabels,
@@ -290,8 +293,10 @@ const ordersDbSecret = new k8s.core.v1.Secret("orders-db-secret", {
     data: {
         name: "b3JkZXJz",
         password: "ZGVmYXVsdF9wYXNzd29yZA==",
-        url: "amRiYzptYXJpYWRiOi8vb3JkZXJzLW15c3FsOjMzMDYvb3JkZXJz",
-        username: "b3JkZXJzX3VzZXI=",
+        username: "b3JkZXJzX21hc3Rlcg==",
+    },
+    stringData: {
+        url: ordersConnectionString,
     },
     metadata: {
         labels: ordersLabels,
@@ -373,24 +378,6 @@ const catalogService = new k8s.core.v1.Service("catalog-service", {
     },
 }, { provider: eksProvider });
 
-const catalogMysqlService = new k8s.core.v1.Service("catalog-mysql-service", {
-    metadata: {
-        labels: catalogDbLabels,
-        name: "catalog-mysql",
-        namespace: catalogNs.metadata.name,
-    },
-    spec: {
-        ports: [{
-            name: "mysql",
-            port: 3306,
-            protocol: "TCP",
-            targetPort: "mysql",
-        }],
-        selector: catalogDbLabels,
-        type: "ClusterIP",
-    },
-}, { provider: eksProvider });
-
 const checkoutService = new k8s.core.v1.Service("checkout-service", {
     metadata: {
         labels: checkoutLabels,
@@ -441,24 +428,6 @@ const ordersService = new k8s.core.v1.Service("orders-service", {
             targetPort: "http",
         }],
         selector: ordersLabels,
-        type: "ClusterIP",
-    },
-}, { provider: eksProvider });
-
-const ordersMysqlService = new k8s.core.v1.Service("orders-mysql-service", {
-    metadata: {
-        labels: ordersDbLabels,
-        name: "orders-mysql",
-        namespace: ordersNs.metadata.name,
-    },
-    spec: {
-        ports: [{
-            name: "mysql",
-            port: 3306,
-            protocol: "TCP",
-            targetPort: "mysql",
-        }],
-        selector: ordersDbLabels,
         type: "ClusterIP",
     },
 }, { provider: eksProvider });
@@ -863,70 +832,6 @@ const catalogDeployment = new k8s.apps.v1.Deployment("catalog-deployment", {
     },
 }, { provider: eksProvider });
 
-const catalogMysqlDeployment = new k8s.apps.v1.Deployment("catalog-mysql-deployment", {
-    metadata: {
-        labels: catalogDbLabels,
-        name: "catalog-mysql",
-        namespace: catalogNs.metadata.name,
-    },
-    spec: {
-        replicas: 1,
-        selector: {
-            matchLabels: catalogDbLabels,
-        },
-        template: {
-            metadata: {
-                labels: catalogDbLabels,
-            },
-            spec: {
-                containers: [{
-                    env: [
-                        {
-                            name: "MYSQL_ROOT_PASSWORD",
-                            value: "my-secret-pw",
-                        },
-                        {
-                            name: "MYSQL_USER",
-                            valueFrom: {
-                                secretKeyRef: {
-                                    key: "username",
-                                    name: catalogDbSecret.metadata.name,
-                                },
-                            },
-                        },
-                        {
-                            name: "MYSQL_PASSWORD",
-                            valueFrom: {
-                                secretKeyRef: {
-                                    key: "password",
-                                    name: catalogDbSecret.metadata.name,
-                                },
-                            },
-                        },
-                        {
-                            name: "MYSQL_DATABASE",
-                            valueFrom: {
-                                secretKeyRef: {
-                                    key: "name",
-                                    name: catalogDbSecret.metadata.name,
-                                },
-                            },
-                        },
-                    ],
-                    image: "mysql:5.7",
-                    imagePullPolicy: "IfNotPresent",
-                    name: "mysql",
-                    ports: [{
-                        containerPort: 3306,
-                        name: "mysql",
-                        protocol: "TCP",
-                    }],
-                }],
-            },
-        },
-    },
-}, { provider: eksProvider });
-
 const checkoutDeployment = new k8s.apps.v1.Deployment("checkout-deployment", {
     metadata: {
         labels: checkoutLabels,
@@ -1186,70 +1091,6 @@ const ordersDeployment = new k8s.apps.v1.Deployment("orders-deployment", {
     },
 }, { provider: eksProvider });
 
-const ordersMysqlDeployment = new k8s.apps.v1.Deployment("orders-mysql-deployment", {
-    metadata: {
-        labels: ordersDbLabels,
-        name: "orders-mysql",
-        namespace: ordersNs.metadata.name,
-    },
-    spec: {
-        replicas: 1,
-        selector: {
-            matchLabels: ordersDbLabels,
-        },
-        template: {
-            metadata: {
-                labels: ordersDbLabels,
-            },
-            spec: {
-                containers: [{
-                    env: [
-                        {
-                            name: "MYSQL_ROOT_PASSWORD",
-                            value: "my-secret-pw",
-                        },
-                        {
-                            name: "MYSQL_USER",
-                            valueFrom: {
-                                secretKeyRef: {
-                                    key: "username",
-                                    name: ordersDbSecret.metadata.name,
-                                },
-                            },
-                        },
-                        {
-                            name: "MYSQL_PASSWORD",
-                            valueFrom: {
-                                secretKeyRef: {
-                                    key: "password",
-                                    name: ordersDbSecret.metadata.name,
-                                },
-                            },
-                        },
-                        {
-                            name: "MYSQL_DATABASE",
-                            valueFrom: {
-                                secretKeyRef: {
-                                    key: "name",
-                                    name: ordersDbSecret.metadata.name,
-                                },
-                            },
-                        },
-                    ],
-                    image: "mysql:5.7",
-                    imagePullPolicy: "IfNotPresent",
-                    name: "mysql",
-                    ports: [{
-                        containerPort: 3306,
-                        name: "mysql",
-                        protocol: "TCP",
-                    }],
-                }],
-            },
-        },
-    },
-}, { provider: eksProvider });
-
 const rabbitmqDeployment = new k8s.apps.v1.Deployment("rabbitmq-deployment", {
     metadata: {
         labels: rabbitmqLabels,
@@ -1385,6 +1226,3 @@ const uiDeployment = new k8s.apps.v1.Deployment("ui-deployment", {
         },
     },
 }, { provider: eksProvider });
-
-// Export some values for use elsewhere
-export const kubeconfig = baseKubeconfig;
