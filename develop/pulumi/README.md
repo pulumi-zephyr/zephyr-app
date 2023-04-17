@@ -9,7 +9,7 @@ Before you can use this Pulumi program, you will need:
 3. NodeJS installed (this was tested with Node 18)
 4. Version 4.1 or greater of the Pulumi Docker provider (should be installed automatically when you run `pulumi up`)
 
-Once the prerequisites are met, then set configuration values (see the section titled "Configuration Values") and run `pulumi up`. Within a few minutes, all the containers will be deployed locally. You can access the Zephyr online store by navigating to `http://localhost:8888`.
+Once the prerequisites are met, set configuration values (see the section titled "Configuration Values") and run `pulumi up`. Within a few minutes, all the containers will be deployed locally. You can access the Zephyr online store by navigating to `http://localhost:8888`.
 
 Run `pulumi destroy` to delete the containers. Note that `pulumi destroy` does not delete container images; this is done to help speed up consecutive deployments of the application.
 
