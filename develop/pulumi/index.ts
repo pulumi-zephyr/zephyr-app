@@ -1,15 +1,36 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as docker from "@pulumi/docker";
+import * as random from "@pulumi/random";
 
 // Get configuration values
 const config = new pulumi.Config();
 const srcRepoPath = config.get("srcRepoPath") || "../..";
-const mySqlPassword = config.require("mySqlPassword");
+// const mySqlPassword = config.require("mySqlPassword");
 const assetsFlag = config.get("assetsFlag") || "build";
 const cartsFlag = config.get("cartsFlag") || "build";
 const catalogFlag = config.get("catalogFlag") || "build";
 const checkoutFlag = config.get("checkoutFlag") || "build";
 const ordersFlag = config.get("ordersFlag") || "build";
+
+// Generate a random password for the databases
+const mySqlPassword = new random.RandomPassword("mysql-password", {
+    length: 14,
+    special: false,
+});
+
+// Determine the platform for container images based on host architecture
+const process = require("process");
+var imagePlatform;
+switch (process.arch) {
+    case "x64":
+        imagePlatform = "linux/amd64";
+        break;
+    case "arm64":
+        imagePlatform = "linux/arm64";
+        break;
+    default:
+        imagePlatform = "linux/arm64";
+};
 
 // Build the UI image
 const uiImage = new docker.Image("ui-image", {
@@ -19,7 +40,7 @@ const uiImage = new docker.Image("ui-image", {
         },
         context: `${srcRepoPath}/src/ui`,
         dockerfile: `${srcRepoPath}/src/ui/Dockerfile`,
-        platform: "linux/arm64",
+        platform: imagePlatform,
     },
     imageName: "zephyr-ui:latest",
     skipPush: true,
@@ -32,7 +53,7 @@ if (assetsFlag == "build") {
         build: {
             context: `${srcRepoPath}/src/assets`,
             dockerfile: `${srcRepoPath}/src/assets/Dockerfile`,
-            platform: "linux/arm64",
+            platform: imagePlatform,
         },
         imageName: "zephyr-assets:latest",
         skipPush: true,
@@ -59,7 +80,7 @@ if (cartsFlag == "build") {
             },
             context: `${srcRepoPath}/src/cart`,
             dockerfile: `${srcRepoPath}/src/cart/Dockerfile`,
-            platform: "linux/arm64",
+            platform: imagePlatform,
         },
         imageName: "zephyr-carts:latest",
         skipPush: true,
@@ -86,7 +107,7 @@ if (catalogFlag == "build") {
             },
             context: `${srcRepoPath}/src/catalog`,
             dockerfile: `${srcRepoPath}/src/catalog/Dockerfile`,
-            platform: "linux/arm64",
+            platform: imagePlatform,
         },
         imageName: "zephyr-catalog:latest",
         skipPush: true,
@@ -113,7 +134,7 @@ if (checkoutFlag == "build") {
             },
             context: `${srcRepoPath}/src/checkout`,
             dockerfile: `${srcRepoPath}/src/checkout/Dockerfile`,
-            platform: "linux/arm64",
+            platform: imagePlatform,
         },
         imageName: "zephyr-checkout:latest",
         skipPush: true,
@@ -140,7 +161,7 @@ if (ordersFlag == "build") {
             },
             context: `${srcRepoPath}/src/orders`,
             dockerfile: `${srcRepoPath}/src/orders/Dockerfile`,
-            platform: "linux/arm64",
+            platform: imagePlatform,
         },
         imageName: "zephyr-orders:latest",
         skipPush: true,
@@ -448,3 +469,6 @@ const uiContainer = new docker.Container("ui", {
     ],
     restart: "always",
 }, { dependsOn: [ checkoutContainer, catalogContainer, ordersContainer, assetsContainer, cartsContainer ]});
+
+// Export the localhost URL to access the application
+export const frontendUrl = uiContainer.ports.apply(ports => `http://localhost:${ports![0].external}`);
