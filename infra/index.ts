@@ -2,16 +2,19 @@ import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
 import * as awsx from "@pulumi/awsx";
 
-// Get the name of the current stack
+// Get the current organization and stack names
+const currentOrgName = pulumi.getOrganization();
 const currentStackName = pulumi.getStack();
 
 // Grab some configuration values
 const config = new pulumi.Config();
-const platformOrgName = config.get("platformOrgName") || "zephyr";
+// Use the current organization name if none is specified
+const platformOrgName = config.get("platformOrgName") || currentOrgName;
+const dataOrgName = config.get("dataOrgName") || currentOrgName;
 const platformProjName = config.get("platformProjName")  || "zephyr-k8s";
-const platformStackName = config.get("platformStackName") || currentStackName;
-const dataOrgName = config.get("dataOrgName") || "zephyr";
 const dataProjName = config.get("dataProjName") || "zephyr-data";
+// Use the current stack name if none is specified
+const platformStackName = config.get("platformStackName") || currentStackName;
 const dataStackName = config.get("dataStackName") || currentStackName;
 
 // Create StackReferences to get information from other stacks
