@@ -502,6 +502,17 @@ const repository = new awsx.ecr.Repository("repository", {
     forceDelete: true,
 });
 
+// Build the assets image
+const assetsImage = new awsx.ecr.Image("assets-image", {
+    repositoryUrl: repository.url,
+    dockerfile: "../src/assets/Dockerfile",
+    path: "../src/assets",
+    env: {
+        DOCKER_BUILDKIT: "1",
+        DOCKER_DEFAULT_PLATFORM: "linux/amd64"
+    }
+});
+
 // Create Deployments for the various application components
 const assetsDeployment = new k8s.apps.v1.Deployment("assets-deployment", {
     metadata: {
@@ -530,7 +541,7 @@ const assetsDeployment = new k8s.apps.v1.Deployment("assets-deployment", {
                             name: assetsConfigMap.metadata.name,
                         },
                     }],
-                    image: "public.ecr.aws/aws-containers/retail-store-sample-assets:0.2.0",
+                    image: assetsImage.imageUri,
                     imagePullPolicy: "IfNotPresent",
                     livenessProbe: {
                         httpGet: {
@@ -700,6 +711,17 @@ const cartsDynamodbDeployment = new k8s.apps.v1.Deployment("carts-dynamodb-deplo
     },
 }, { provider: eksProvider });
 
+// Build the catalog image
+const catalogImage = new awsx.ecr.Image("catalog-image", {
+    repositoryUrl: repository.url,
+    dockerfile: "../src/catalog/Dockerfile",
+    path: "../src/catalog",
+    env: {
+        DOCKER_BUILDKIT: "1",
+        DOCKER_DEFAULT_PLATFORM: "linux/amd64"
+    }
+});
+
 const catalogDeployment = new k8s.apps.v1.Deployment("catalog-deployment", {
     metadata: {
         labels: catalogLabels,
@@ -774,7 +796,7 @@ const catalogDeployment = new k8s.apps.v1.Deployment("catalog-deployment", {
                             name: catalogConfigMap.metadata.name,
                         },
                     }],
-                    image: "public.ecr.aws/aws-containers/retail-store-sample-catalog:0.2.0",
+                    image: catalogImage.imageUri,
                     imagePullPolicy: "IfNotPresent",
                     livenessProbe: {
                         httpGet: {
