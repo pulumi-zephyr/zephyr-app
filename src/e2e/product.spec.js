@@ -38,12 +38,12 @@ describe('when on product', function() {
 
   it('should have breadcrumb', function() {
     expect(product.getBreadcrumb().getText())
-      .toEqual('Gentleman');
+      .toEqual('Portal Gun');
   });
 
   it('should have name', function() {
     expect(product.getName().getText())
-      .toEqual('Gentleman');
+      .toEqual('Portal Gun');
   });
 
   it('should have price', function() {
