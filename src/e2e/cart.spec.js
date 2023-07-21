@@ -63,7 +63,7 @@ describe('when on cart', function() {
 
       let item = new CartItem(cart.getItems().get(0));
 
-      expect(item.getName()).toEqual('Gentleman');
+      expect(item.getName()).toEqual('Portal Gun');
       expect(item.getPrice()).toEqual('$ 795');
     });
   });

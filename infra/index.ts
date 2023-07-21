@@ -526,8 +526,45 @@ const uiLbService = new k8s.core.v1.Service("ui-lb-service", {
     },
 }, { provider: eksProvider });
 
+// Create an AWS ECR repository for container images
 const repository = new awsx.ecr.Repository("repository", {
     forceDelete: true,
+});
+
+// Build the assets image
+const assetsImage = new awsx.ecr.Image("assets-image", {
+    repositoryUrl: repository.url,
+    dockerfile: "../src/assets/Dockerfile",
+    path: "../src/assets",
+    env: {
+        DOCKER_BUILDKIT: "1",
+        DOCKER_DEFAULT_PLATFORM: "linux/amd64"
+    }
+});
+
+// Build the catalog image
+const catalogImage = new awsx.ecr.Image("catalog-image", {
+    repositoryUrl: repository.url,
+    dockerfile: "../images/go/Dockerfile",
+    path: "../src/catalog",
+    env: {
+        DOCKER_BUILDKIT: "1",
+        DOCKER_DEFAULT_PLATFORM: "linux/amd64"
+    }
+});
+
+// Build the UI image
+const uiImage = new awsx.ecr.Image("ui-image", {
+    repositoryUrl: repository.url,
+    dockerfile: "../images/java17/Dockerfile",
+    path: "../src/ui",
+    args: {
+        JAR_PATH: "target/ui-0.0.1-SNAPSHOT.jar",
+    },
+    env: {
+        DOCKER_BUILDKIT: "1",
+        DOCKER_DEFAULT_PLATFORM: "linux/amd64"
+    }
 });
 
 // Create Deployments for the various application components
@@ -558,7 +595,7 @@ const assetsDeployment = new k8s.apps.v1.Deployment("assets-deployment", {
                             name: assetsConfigMap.metadata.name,
                         },
                     }],
-                    image: "public.ecr.aws/aws-containers/retail-store-sample-assets:0.2.0",
+                    image: assetsImage.imageUri,
                     imagePullPolicy: "IfNotPresent",
                     livenessProbe: {
                         httpGet: {
@@ -802,7 +839,7 @@ const catalogDeployment = new k8s.apps.v1.Deployment("catalog-deployment", {
                             name: catalogConfigMap.metadata.name,
                         },
                     }],
-                    image: "public.ecr.aws/aws-containers/retail-store-sample-catalog:0.2.0",
+                    image: catalogImage.imageUri,
                     imagePullPolicy: "IfNotPresent",
                     livenessProbe: {
                         httpGet: {
@@ -1287,19 +1324,6 @@ const rabbitmqDeployment = new k8s.apps.v1.Deployment("rabbitmq-deployment", {
         },
     },
 }, { provider: eksProvider });
-
-const uiImage = new awsx.ecr.Image("ui-image", {
-    repositoryUrl: repository.url,
-    dockerfile: "../images/java17/Dockerfile",
-    path: "../src/ui",
-    args: {
-        JAR_PATH: "target/ui-0.0.1-SNAPSHOT.jar",
-    },
-    env: {
-        DOCKER_BUILDKIT: "1",
-        DOCKER_DEFAULT_PLATFORM: "linux/amd64"
-    }
-});
 
 const uiDeployment = new k8s.apps.v1.Deployment("ui-deployment", {
     metadata: {
