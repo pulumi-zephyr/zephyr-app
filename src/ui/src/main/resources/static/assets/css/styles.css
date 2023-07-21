@@ -16,6 +16,23 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+:root {
+  --bs-primary-rgb: 114,142,126;
+  --bs-link-color: #FFAF36;
+  --bs-btn-bg: #FFAF36;
+  --bs-btn-border-color: #FFAF36;
+  --bs-btn-hover-bg: #FFAF36;
+  --bs-btn-hover-border-color: #FFAF36;
+  --bs-btn-active-bg: #FFAF36;
+  --bs-btn-active-border-color: #FFAF36;
+  --bs-btn-disabled-bg: #FFAF36;
+  --bs-btn-disabled-border-color: #FFAF36;
+}
+
+.btn-success {
+  --bs-btn-bg: rgba(var(--bs-primary-rgb), 0.8);
+}
+
 a {
   text-decoration: none;
 }
@@ -69,6 +86,7 @@ footer a {
   width: 75px;
   height: 75px;
   font-size: 30px;
+  background-color: rgba(var(--bs-primary-rgb), 0.1);
 }
 
 .couplet {
@@ -144,7 +162,7 @@ footer a {
   width: 25px;
   height: 25px;
   border-radius: 25px;
-  
+
 }
 .stepper .text {
   display: block;
@@ -162,7 +180,7 @@ footer a {
   position: absolute;
 }
 .stepper .step.current .icon {
-  background: #03a726;
+  background: rgba(var(--bs-primary-rgb), 0.6);
   color: #fff;
 }
 .stepper .step.current .text {
