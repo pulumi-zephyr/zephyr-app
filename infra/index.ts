@@ -90,51 +90,96 @@ const uiLabels = {
 const assetsNs = new k8s.core.v1.Namespace("assets-ns", {
     metadata: {
         labels: assetsLabels,
-        name: "assets",
     },
 }, { provider: eksProvider });
 
 const cartsNs = new k8s.core.v1.Namespace("carts-ns", {
     metadata: {
         labels: cartsLabels,
-        name: "carts",
     },
 }, { provider: eksProvider });
 
 const catalogNs = new k8s.core.v1.Namespace("catalog-ns", {
     metadata: {
         labels: catalogLabels,
-        name: "catalog",
     },
 }, { provider: eksProvider });
 
 const checkoutNs = new k8s.core.v1.Namespace("checkout-ns", {
     metadata: {
         labels: checkoutLabels,
-        name: "checkout",
     },
 }, { provider: eksProvider });
 
 const ordersNs = new k8s.core.v1.Namespace("orders-ns", {
     metadata: {
         labels: ordersLabels,
-        name: "orders",
     },
 }, { provider: eksProvider });
 
 const rabbitmqNs = new k8s.core.v1.Namespace("rabbitmq-ns", {
     metadata: {
         labels: rabbitmqLabels,
-        name: "rabbitmq",
     },
 }, { provider: eksProvider });
 
 const uiNs = new k8s.core.v1.Namespace("ui-ns", {
     metadata: {
         labels: uiLabels,
-        name: "ui",
     },
 }, { provider: eksProvider });
+
+function makeInstrumentation(namespace: k8s.core.v1.Namespace, serviceName: string) {
+  return new k8s.apiextensions.CustomResource(
+      `instrumentation-${serviceName}`,
+      {
+          apiVersion: 'opentelemetry.io/v1alpha1',
+          kind: 'Instrumentation',
+          metadata: {
+              namespace: namespace.metadata.name,
+          },
+          spec: {
+              exporter: {
+                  endpoint: 'http://default-collector.opentelemetry.svc:4317',
+              },
+              sampler: {
+                  type: 'always_on',
+              },
+              resource: {
+                  resourceAttributes: {
+                      app: 'zephyr',
+                      'service.name': serviceName,
+                      'service.stack': pulumi.getStack(),
+                      'service.version': '0.1.0',
+                      'deployment.environment': `dev-${pulumi.getStack()}`,
+                  },
+              },
+              propagators: ['tracecontext', 'baggage', 'b3', 'b3multi', 'xray'],
+              env: [
+                  {
+                      name: 'OTEL_JAVAAGENT_ENABLED',
+                      value: 'true',
+                  },
+                  {
+                      name: 'OTEL_SERVICE_NAME',
+                      value: serviceName,
+                  },
+              ],
+          },
+      },
+      { provider: eksProvider },
+  );
+}
+
+makeInstrumentation(assetsNs, 'assets');
+makeInstrumentation(cartsNs, 'carts');
+makeInstrumentation(catalogNs, 'catalog');
+makeInstrumentation(checkoutNs, 'checkout');
+makeInstrumentation(ordersNs, 'orders');
+makeInstrumentation(rabbitmqNs, 'rabbitmq');
+makeInstrumentation(uiNs, 'ui');
+
+
 
 // Create service accounts for the application components
 const assetsSa = new k8s.core.v1.ServiceAccount("assets-sa", {
@@ -230,7 +275,7 @@ const catalogConfigMap = new k8s.core.v1.ConfigMap("catalog-configmap", {
 
 const checkoutConfigMap = new k8s.core.v1.ConfigMap("checkout-configmap", {
     data: {
-        ENDPOINTS_ORDERS: "http://orders.orders.svc:80",
+        ENDPOINTS_ORDERS: pulumi.interpolate`http://orders.${ordersNs.metadata.name}.svc:80`,
         REDIS_URL: "redis://checkout-redis:6379",
     },
     metadata: {
@@ -243,7 +288,7 @@ const checkoutConfigMap = new k8s.core.v1.ConfigMap("checkout-configmap", {
 const ordersConfigMap = new k8s.core.v1.ConfigMap("orders-configmap", {
     data: {
         SPRING_PROFILES_ACTIVE: "mysql,rabbitmq",
-        SPRING_RABBITMQ_HOST: "rabbitmq.rabbitmq.svc",
+        SPRING_RABBITMQ_HOST: pulumi.interpolate`rabbitmq.${rabbitmqNs.metadata.name}.svc`,
     },
     metadata: {
         labels: ordersLabels,
@@ -262,11 +307,11 @@ const rabbitmqConfigMap = new k8s.core.v1.ConfigMap("rabbitmq-configmap", {
 
 const uiConfigMap = new k8s.core.v1.ConfigMap("ui-configmap", {
     data: {
-        ENDPOINTS_ASSETS: "http://assets.assets.svc:80",
-        ENDPOINTS_CARTS: "http://carts.carts.svc:80",
-        ENDPOINTS_CATALOG: "http://catalog.catalog.svc:80",
-        ENDPOINTS_CHECKOUT: "http://checkout.checkout.svc:80",
-        ENDPOINTS_ORDERS: "http://orders.orders.svc:80",
+        ENDPOINTS_ASSETS: pulumi.interpolate`http://assets.${assetsNs.metadata.name}.svc:80`,
+        ENDPOINTS_CARTS: pulumi.interpolate`http://carts.${cartsNs.metadata.name}.svc:80`,
+        ENDPOINTS_CATALOG: pulumi.interpolate`http://catalog.${catalogNs.metadata.name}.svc:80`,
+        ENDPOINTS_CHECKOUT: pulumi.interpolate`http://checkout.${checkoutNs.metadata.name}.svc:80`,
+        ENDPOINTS_ORDERS: pulumi.interpolate`http://orders.${ordersNs.metadata.name}.svc:80`,
     },
     metadata: {
         labels: uiLabels,
@@ -531,6 +576,7 @@ const assetsDeployment = new k8s.apps.v1.Deployment("assets-deployment", {
                     "prometheus.io/path": "/metrics",
                     "prometheus.io/port": "8080",
                     "prometheus.io/scrape": "true",
+                    "instrumentation.opentelemetry.io/inject-sdk": "true",
                 },
                 labels: assetsLabels,
             },
@@ -607,6 +653,7 @@ const cartsDeployment = new k8s.apps.v1.Deployment("carts-deployment", {
                     "prometheus.io/path": "/actuator/prometheus",
                     "prometheus.io/port": "80801",
                     "prometheus.io/scrape": "true",
+                    "instrumentation.opentelemetry.io/inject-sdk": "true",
                 },
                 labels: cartsLabels,
             },
@@ -739,6 +786,7 @@ const catalogDeployment = new k8s.apps.v1.Deployment("catalog-deployment", {
                     "prometheus.io/path": "/metrics",
                     "prometheus.io/port": "8080",
                     "prometheus.io/scrape": "true",
+                    "instrumentation.opentelemetry.io/inject-sdk": "true",
                 },
                 labels: catalogLabels,
             },
@@ -874,6 +922,7 @@ const checkoutDeployment = new k8s.apps.v1.Deployment("checkout-deployment", {
                     "prometheus.io/path": "/metrics",
                     "prometheus.io/port": "8080",
                     "prometheus.io/scrape": "true",
+                    "instrumentation.opentelemetry.io/inject-sdk": "true",
                 },
                 labels: checkoutLabels,
             },
@@ -985,6 +1034,7 @@ const ordersDeployment = new k8s.apps.v1.Deployment("orders-deployment", {
                     "prometheus.io/path": "/actuator/prometheus",
                     "prometheus.io/port": "8080",
                     "prometheus.io/scrape": "true",
+                    "instrumentation.opentelemetry.io/inject-sdk": "true",
                 },
                 labels: ordersLabels,
             },
@@ -1184,6 +1234,7 @@ const uiDeployment = new k8s.apps.v1.Deployment("ui-deployment", {
                     "prometheus.io/path": "/actuator/prometheus",
                     "prometheus.io/port": "8080",
                     "prometheus.io/scrape": "true",
+                    "instrumentation.opentelemetry.io/inject-sdk": "true",
                 },
                 labels: uiLabels,
             },
