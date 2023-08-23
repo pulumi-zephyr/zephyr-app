@@ -308,196 +308,6 @@ const ordersDbSecret = new k8s.core.v1.Secret("orders-db-secret", {
     },
 }, { provider: eksProvider });
 
-// Expose application components via Services
-const assetsService = new k8s.core.v1.Service("assets-service", {
-    metadata: {
-        labels: assetsLabels,
-        name: "assets",
-        namespace: assetsNs.metadata.name,
-    },
-    spec: {
-        ports: [{
-            name: "http",
-            port: 80,
-            protocol: "TCP",
-            targetPort: "http",
-        }],
-        selector: assetsLabels,
-        type: "ClusterIP",
-    },
-}, { provider: eksProvider });
-
-const cartsService = new k8s.core.v1.Service("carts-service", {
-    metadata: {
-        labels: cartsLabels,
-        name: "carts",
-        namespace: cartsNs.metadata.name,
-    },
-    spec: {
-        ports: [{
-            name: "http",
-            port: 80,
-            protocol: "TCP",
-            targetPort: "http",
-        }],
-        selector: cartsLabels,
-        type: "ClusterIP",
-    },
-}, { provider: eksProvider });
-
-const cartsDynamodbService = new k8s.core.v1.Service("carts-dynamodb-service", {
-    metadata: {
-        labels: cartsDbLabels,
-        name: "carts-dynamodb",
-        namespace: cartsNs.metadata.name,
-    },
-    spec: {
-        ports: [{
-            name: "dynamodb",
-            port: 8000,
-            protocol: "TCP",
-            targetPort: "dynamodb",
-        }],
-        selector: cartsDbLabels,
-        type: "ClusterIP",
-    },
-}, { provider: eksProvider });
-
-const catalogService = new k8s.core.v1.Service("catalog-service", {
-    metadata: {
-        labels: catalogLabels,
-        name: "catalog",
-        namespace: catalogNs.metadata.name,
-    },
-    spec: {
-        ports: [{
-            name: "http",
-            port: 80,
-            protocol: "TCP",
-            targetPort: "http",
-        }],
-        selector: catalogLabels,
-        type: "ClusterIP",
-    },
-}, { provider: eksProvider });
-
-const checkoutService = new k8s.core.v1.Service("checkout-service", {
-    metadata: {
-        labels: checkoutLabels,
-        name: "checkout",
-        namespace: checkoutNs.metadata.name,
-    },
-    spec: {
-        ports: [{
-            name: "http",
-            port: 80,
-            protocol: "TCP",
-            targetPort: "http",
-        }],
-        selector: checkoutLabels,
-        type: "ClusterIP",
-    },
-}, { provider: eksProvider });
-
-const checkoutRedisService = new k8s.core.v1.Service("checkout-redis-service", {
-    metadata: {
-        labels: checkoutDbLabels,
-        name: "checkout-redis",
-        namespace: checkoutNs.metadata.name,
-    },
-    spec: {
-        ports: [{
-            name: "redis",
-            port: 6379,
-            protocol: "TCP",
-            targetPort: "redis",
-        }],
-        selector: checkoutDbLabels,
-        type: "ClusterIP",
-    },
-}, { provider: eksProvider });
-
-const ordersService = new k8s.core.v1.Service("orders-service", {
-    metadata: {
-        labels: ordersLabels,
-        name: "orders",
-        namespace: ordersNs.metadata.name,
-    },
-    spec: {
-        ports: [{
-            name: "http",
-            port: 80,
-            protocol: "TCP",
-            targetPort: "http",
-        }],
-        selector: ordersLabels,
-        type: "ClusterIP",
-    },
-}, { provider: eksProvider });
-
-const rabbitmqService = new k8s.core.v1.Service("rabbitmq-service", {
-    metadata: {
-        labels: rabbitmqLabels,
-        name: "rabbitmq",
-        namespace: rabbitmqNs.metadata.name,
-    },
-    spec: {
-        ports: [
-            {
-                name: "amqp",
-                port: 5672,
-                protocol: "TCP",
-                targetPort: "amqp",
-            },
-            {
-                name: "http",
-                port: 15672,
-                protocol: "TCP",
-                targetPort: "http",
-            },
-        ],
-        selector: rabbitmqLabels,
-        type: "ClusterIP",
-    },
-}, { provider: eksProvider });
-
-const uiService = new k8s.core.v1.Service("ui-service", {
-    metadata: {
-        labels: uiLabels,
-        name: "ui",
-        namespace: uiNs.metadata.name,
-    },
-    spec: {
-        ports: [{
-            name: "http",
-            port: 80,
-            protocol: "TCP",
-            targetPort: "http",
-        }],
-        selector: uiLabels,
-        type: "ClusterIP",
-    },
-}, { provider: eksProvider });
-
-// Expose the UI via a load balancer for external access
-const uiLbService = new k8s.core.v1.Service("ui-lb-service", {
-    metadata: {
-        labels: uiLabels,
-        name: "ui-lb",
-        namespace: uiNs.metadata.name,
-    },
-    spec: {
-        ports: [{
-            name: "http",
-            port: 80,
-            protocol: "TCP",
-            targetPort: "http",
-        }],
-        selector: uiLabels,
-        type: "LoadBalancer",
-    },
-}, { provider: eksProvider });
-
 const repository = new awsx.ecr.Repository("repository", {
     forceDelete: true,
 });
@@ -507,6 +317,31 @@ const assetsImage = new awsx.ecr.Image("assets-image", {
     repositoryUrl: repository.url,
     dockerfile: "../src/assets/Dockerfile",
     path: "../src/assets",
+    env: {
+        DOCKER_BUILDKIT: "1",
+        DOCKER_DEFAULT_PLATFORM: "linux/amd64"
+    }
+});
+
+// Build the catalog image
+const catalogImage = new awsx.ecr.Image("catalog-image", {
+    repositoryUrl: repository.url,
+    dockerfile: "../src/catalog/Dockerfile",
+    path: "../src/catalog",
+    env: {
+        DOCKER_BUILDKIT: "1",
+        DOCKER_DEFAULT_PLATFORM: "linux/amd64"
+    }
+});
+
+// Build the UI image
+const uiImage = new awsx.ecr.Image("ui-image", {
+    repositoryUrl: repository.url,
+    dockerfile: "../images/java17/Dockerfile",
+    path: "../src/ui",
+    args: {
+        JAR_PATH: "target/ui-0.0.1-SNAPSHOT.jar",
+    },
     env: {
         DOCKER_BUILDKIT: "1",
         DOCKER_DEFAULT_PLATFORM: "linux/amd64"
@@ -710,17 +545,6 @@ const cartsDynamodbDeployment = new k8s.apps.v1.Deployment("carts-dynamodb-deplo
         },
     },
 }, { provider: eksProvider });
-
-// Build the catalog image
-const catalogImage = new awsx.ecr.Image("catalog-image", {
-    repositoryUrl: repository.url,
-    dockerfile: "../src/catalog/Dockerfile",
-    path: "../src/catalog",
-    env: {
-        DOCKER_BUILDKIT: "1",
-        DOCKER_DEFAULT_PLATFORM: "linux/amd64"
-    }
-});
 
 const catalogDeployment = new k8s.apps.v1.Deployment("catalog-deployment", {
     metadata: {
@@ -1154,19 +978,6 @@ const rabbitmqDeployment = new k8s.apps.v1.Deployment("rabbitmq-deployment", {
     },
 }, { provider: eksProvider });
 
-const uiImage = new awsx.ecr.Image("ui-image", {
-    repositoryUrl: repository.url,
-    dockerfile: "../images/java17/Dockerfile",
-    path: "../src/ui",
-    args: {
-        JAR_PATH: "target/ui-0.0.1-SNAPSHOT.jar",
-    },
-    env: {
-        DOCKER_BUILDKIT: "1",
-        DOCKER_DEFAULT_PLATFORM: "linux/amd64"
-    }
-});
-
 const uiDeployment = new k8s.apps.v1.Deployment("ui-deployment", {
     metadata: {
         labels: uiLabels,
@@ -1249,5 +1060,195 @@ const uiDeployment = new k8s.apps.v1.Deployment("ui-deployment", {
                 }],
             },
         },
+    },
+}, { provider: eksProvider });
+
+// Expose application components via Services
+const assetsService = new k8s.core.v1.Service("assets-service", {
+    metadata: {
+        labels: assetsLabels,
+        name: "assets",
+        namespace: assetsNs.metadata.name,
+    },
+    spec: {
+        ports: [{
+            name: "http",
+            port: 80,
+            protocol: "TCP",
+            targetPort: "http",
+        }],
+        selector: assetsLabels,
+        type: "ClusterIP",
+    },
+}, { provider: eksProvider });
+
+const cartsService = new k8s.core.v1.Service("carts-service", {
+    metadata: {
+        labels: cartsLabels,
+        name: "carts",
+        namespace: cartsNs.metadata.name,
+    },
+    spec: {
+        ports: [{
+            name: "http",
+            port: 80,
+            protocol: "TCP",
+            targetPort: "http",
+        }],
+        selector: cartsLabels,
+        type: "ClusterIP",
+    },
+}, { provider: eksProvider });
+
+const cartsDynamodbService = new k8s.core.v1.Service("carts-dynamodb-service", {
+    metadata: {
+        labels: cartsDbLabels,
+        name: "carts-dynamodb",
+        namespace: cartsNs.metadata.name,
+    },
+    spec: {
+        ports: [{
+            name: "dynamodb",
+            port: 8000,
+            protocol: "TCP",
+            targetPort: "dynamodb",
+        }],
+        selector: cartsDbLabels,
+        type: "ClusterIP",
+    },
+}, { provider: eksProvider });
+
+const catalogService = new k8s.core.v1.Service("catalog-service", {
+    metadata: {
+        labels: catalogLabels,
+        name: "catalog",
+        namespace: catalogNs.metadata.name,
+    },
+    spec: {
+        ports: [{
+            name: "http",
+            port: 80,
+            protocol: "TCP",
+            targetPort: "http",
+        }],
+        selector: catalogLabels,
+        type: "ClusterIP",
+    },
+}, { provider: eksProvider });
+
+const checkoutService = new k8s.core.v1.Service("checkout-service", {
+    metadata: {
+        labels: checkoutLabels,
+        name: "checkout",
+        namespace: checkoutNs.metadata.name,
+    },
+    spec: {
+        ports: [{
+            name: "http",
+            port: 80,
+            protocol: "TCP",
+            targetPort: "http",
+        }],
+        selector: checkoutLabels,
+        type: "ClusterIP",
+    },
+}, { provider: eksProvider });
+
+const checkoutRedisService = new k8s.core.v1.Service("checkout-redis-service", {
+    metadata: {
+        labels: checkoutDbLabels,
+        name: "checkout-redis",
+        namespace: checkoutNs.metadata.name,
+    },
+    spec: {
+        ports: [{
+            name: "redis",
+            port: 6379,
+            protocol: "TCP",
+            targetPort: "redis",
+        }],
+        selector: checkoutDbLabels,
+        type: "ClusterIP",
+    },
+}, { provider: eksProvider });
+
+const ordersService = new k8s.core.v1.Service("orders-service", {
+    metadata: {
+        labels: ordersLabels,
+        name: "orders",
+        namespace: ordersNs.metadata.name,
+    },
+    spec: {
+        ports: [{
+            name: "http",
+            port: 80,
+            protocol: "TCP",
+            targetPort: "http",
+        }],
+        selector: ordersLabels,
+        type: "ClusterIP",
+    },
+}, { provider: eksProvider });
+
+const rabbitmqService = new k8s.core.v1.Service("rabbitmq-service", {
+    metadata: {
+        labels: rabbitmqLabels,
+        name: "rabbitmq",
+        namespace: rabbitmqNs.metadata.name,
+    },
+    spec: {
+        ports: [
+            {
+                name: "amqp",
+                port: 5672,
+                protocol: "TCP",
+                targetPort: "amqp",
+            },
+            {
+                name: "http",
+                port: 15672,
+                protocol: "TCP",
+                targetPort: "http",
+            },
+        ],
+        selector: rabbitmqLabels,
+        type: "ClusterIP",
+    },
+}, { provider: eksProvider });
+
+const uiService = new k8s.core.v1.Service("ui-service", {
+    metadata: {
+        labels: uiLabels,
+        name: "ui",
+        namespace: uiNs.metadata.name,
+    },
+    spec: {
+        ports: [{
+            name: "http",
+            port: 80,
+            protocol: "TCP",
+            targetPort: "http",
+        }],
+        selector: uiLabels,
+        type: "ClusterIP",
+    },
+}, { provider: eksProvider });
+
+// Expose the UI via a load balancer for external access
+const uiLbService = new k8s.core.v1.Service("ui-lb-service", {
+    metadata: {
+        labels: uiLabels,
+        name: "ui-lb",
+        namespace: uiNs.metadata.name,
+    },
+    spec: {
+        ports: [{
+            name: "http",
+            port: 80,
+            protocol: "TCP",
+            targetPort: "http",
+        }],
+        selector: uiLabels,
+        type: "LoadBalancer",
     },
 }, { provider: eksProvider });
