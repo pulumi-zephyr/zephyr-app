@@ -1077,7 +1077,7 @@ const assetsService = new k8s.core.v1.Service("assets-service", {
             protocol: "TCP",
             targetPort: "http",
         }],
-        selector: assetsLabels,
+        selector: assetsDeployment.spec.selector.matchLabels,
         type: "ClusterIP",
     },
 }, { provider: eksProvider });
@@ -1095,7 +1095,7 @@ const cartsService = new k8s.core.v1.Service("carts-service", {
             protocol: "TCP",
             targetPort: "http",
         }],
-        selector: cartsLabels,
+        selector: cartsDeployment.spec.selector.matchLabels,
         type: "ClusterIP",
     },
 }, { provider: eksProvider });
@@ -1113,7 +1113,7 @@ const cartsDynamodbService = new k8s.core.v1.Service("carts-dynamodb-service", {
             protocol: "TCP",
             targetPort: "dynamodb",
         }],
-        selector: cartsDbLabels,
+        selector: cartsDynamodbDeployment.spec.selector.matchLabels,
         type: "ClusterIP",
     },
 }, { provider: eksProvider });
@@ -1131,7 +1131,7 @@ const catalogService = new k8s.core.v1.Service("catalog-service", {
             protocol: "TCP",
             targetPort: "http",
         }],
-        selector: catalogLabels,
+        selector: catalogDeployment.spec.selector.matchLabels,
         type: "ClusterIP",
     },
 }, { provider: eksProvider });
@@ -1149,7 +1149,7 @@ const checkoutService = new k8s.core.v1.Service("checkout-service", {
             protocol: "TCP",
             targetPort: "http",
         }],
-        selector: checkoutLabels,
+        selector: checkoutDeployment.spec.selector.matchLabels,
         type: "ClusterIP",
     },
 }, { provider: eksProvider });
@@ -1167,7 +1167,7 @@ const checkoutRedisService = new k8s.core.v1.Service("checkout-redis-service", {
             protocol: "TCP",
             targetPort: "redis",
         }],
-        selector: checkoutDbLabels,
+        selector: checkoutRedisDeployment.spec.selector.matchLabels,
         type: "ClusterIP",
     },
 }, { provider: eksProvider });
@@ -1185,7 +1185,7 @@ const ordersService = new k8s.core.v1.Service("orders-service", {
             protocol: "TCP",
             targetPort: "http",
         }],
-        selector: ordersLabels,
+        selector: ordersDeployment.spec.selector.matchLabels,
         type: "ClusterIP",
     },
 }, { provider: eksProvider });
@@ -1211,7 +1211,7 @@ const rabbitmqService = new k8s.core.v1.Service("rabbitmq-service", {
                 targetPort: "http",
             },
         ],
-        selector: rabbitmqLabels,
+        selector: rabbitmqDeployment.spec.selector.matchLabels,
         type: "ClusterIP",
     },
 }, { provider: eksProvider });
@@ -1229,7 +1229,7 @@ const uiService = new k8s.core.v1.Service("ui-service", {
             protocol: "TCP",
             targetPort: "http",
         }],
-        selector: uiLabels,
+        selector: uiDeployment.spec.selector.matchLabels,
         type: "ClusterIP",
     },
 }, { provider: eksProvider });
@@ -1248,7 +1248,7 @@ const uiLbService = new k8s.core.v1.Service("ui-lb-service", {
             protocol: "TCP",
             targetPort: "http",
         }],
-        selector: uiLabels,
+        selector: uiDeployment.spec.selector.matchLabels,
         type: "LoadBalancer",
     },
 }, { provider: eksProvider });
