@@ -1,5 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as docker from "@pulumi/docker";
+import * as dockerbuild from "@pulumi/docker-build";
 import * as random from "@pulumi/random";
 
 // Get configuration values
@@ -20,7 +21,7 @@ const mySqlPassword = new random.RandomPassword("mysql-password", {
 
 // Determine the platform for container images based on host architecture
 const process = require("process");
-var imagePlatform;
+var imagePlatform : dockerbuild.Platform;
 switch (process.arch) {
     case "x64":
         imagePlatform = "linux/amd64";
@@ -33,32 +34,30 @@ switch (process.arch) {
 };
 
 // Build the UI image
-const uiImage = new docker.Image("ui-image", {
-    build: {
-        args: {
-            "JAR_PATH": "target/ui-0.0.1-SNAPSHOT.jar",
-        },
-        context: `${srcRepoPath}/src/ui`,
-        dockerfile: `${srcRepoPath}/src/ui/Dockerfile`,
-        platform: imagePlatform,
+const uiImage = new dockerbuild.Image("ui-image", {
+    buildArgs: {
+        "JAR_PATH": "target/ui-0.0.1-SNAPSHOT.jar",
     },
-    imageName: "zephyr-ui:latest",
-    skipPush: true,
+    context: { location: `${srcRepoPath}/src/ui` },
+    dockerfile: { location: `${srcRepoPath}/src/ui/Dockerfile` },
+    platforms: [imagePlatform],
+    tags: ["zephyr-ui:latest"],
+    push: false,
+    exports: [{ cacheonly: {} }],
 }, { retainOnDelete: true });
 
 // Build the assets image or pull remote image, depending on value of assetsFlag
 var assetsImageRef: pulumi.Input<string>;
 if (assetsFlag == "build") {
-    const assetsImage = new docker.Image("assets-image", {
-        build: {
-            context: `${srcRepoPath}/src/assets`,
-            dockerfile: `${srcRepoPath}/src/assets/Dockerfile`,
-            platform: imagePlatform,
-        },
-        imageName: "zephyr-assets:latest",
-        skipPush: true,
+    const assetsImage = new dockerbuild.Image("assets-image", {
+        context: { location: `${srcRepoPath}/src/assets` },
+        dockerfile: { location: `${srcRepoPath}/src/assets/Dockerfile` },
+        platforms: [imagePlatform],
+        tags: ["zephyr-assets:latest"],
+        push: false,
+        exports: [{ cacheonly: {} }],
     }, { retainOnDelete: true });
-    assetsImageRef = assetsImage.id;
+    assetsImageRef = assetsImage.ref;
 } else {
     const assetsRegistryImage = docker.getRegistryImage({
         name: "public.ecr.aws/aws-containers/retail-store-sample-assets:0.2.0",
@@ -73,19 +72,18 @@ if (assetsFlag == "build") {
 // Build carts image or pull remote image, depending on the value of cartsFlag
 var cartsImageRef: pulumi.Input<string>;
 if (cartsFlag == "build") {
-    const cartsImage = new docker.Image("carts-image", {
-        build: {
-            args: {
-                "JAR_PATH": "target/carts-0.0.1-SNAPSHOT.jar",
-            },
-            context: `${srcRepoPath}/src/cart`,
-            dockerfile: `${srcRepoPath}/src/cart/Dockerfile`,
-            platform: imagePlatform,
+    const cartsImage = new dockerbuild.Image("carts-image", {
+        buildArgs: {
+            "JAR_PATH": "target/carts-0.0.1-SNAPSHOT.jar",
         },
-        imageName: "zephyr-carts:latest",
-        skipPush: true,
+        context: { location: `${srcRepoPath}/src/cart` },
+        dockerfile: { location: `${srcRepoPath}/src/cart/Dockerfile` },
+        platforms: [imagePlatform],
+        tags: ["zephyr-carts:latest"],
+        push: false,
+        exports: [{ cacheonly: {} }],
     }, { retainOnDelete: true });
-    cartsImageRef = cartsImage.id;
+    cartsImageRef = cartsImage.ref;
 } else {
     const cartsRegistryImage = docker.getRegistryImage({
         name: "public.ecr.aws/aws-containers/retail-store-sample-cart:0.2.0",
@@ -100,19 +98,18 @@ if (cartsFlag == "build") {
 // Build catalog image or pull remote image, depending on the value of catalogFlag
 var catalogImageRef: pulumi.Input<string>;
 if (catalogFlag == "build") {
-    const catalogImage = new docker.Image("catalog-image", {
-        build: {
-            args: {
-                "MAIN_PATH": "main.go",
-            },
-            context: `${srcRepoPath}/src/catalog`,
-            dockerfile: `${srcRepoPath}/src/catalog/Dockerfile`,
-            platform: imagePlatform,
+    const catalogImage = new dockerbuild.Image("catalog-image", {
+        buildArgs: {
+            "MAIN_PATH": "main.go",
         },
-        imageName: "zephyr-catalog:latest",
-        skipPush: true,
+        context: { location: `${srcRepoPath}/src/catalog` },
+        dockerfile: { location: `${srcRepoPath}/src/catalog/Dockerfile` },
+        platforms: [imagePlatform],
+        tags: ["zephyr-catalog:latest"],
+        push: false,
+        exports: [{ cacheonly: {} }],
     }, { retainOnDelete: true });
-    catalogImageRef = catalogImage.id;
+    catalogImageRef = catalogImage.ref;
 } else {
     const catalogRegistryImage = docker.getRegistryImage({
         name: "public.ecr.aws/aws-containers/retail-store-sample-catalog:0.2.0",
@@ -127,19 +124,18 @@ if (catalogFlag == "build") {
 // Build checkout image or pull remote image, depending on value of checkoutFlag
 var checkoutImageRef: pulumi.Input<string>;
 if (checkoutFlag == "build") {
-    const checkoutImage = new docker.Image("checkout-image", {
-        build: {
-            args: {
-                "MAIN_PATH": "main.go",
-            },
-            context: `${srcRepoPath}/src/checkout`,
-            dockerfile: `${srcRepoPath}/src/checkout/Dockerfile`,
-            platform: imagePlatform,
+    const checkoutImage = new dockerbuild.Image("checkout-image", {
+        buildArgs: {
+            "MAIN_PATH": "main.go",
         },
-        imageName: "zephyr-checkout:latest",
-        skipPush: true,
+        context: { location: `${srcRepoPath}/src/checkout` },
+        dockerfile: { location: `${srcRepoPath}/src/checkout/Dockerfile` },
+        platforms: [imagePlatform],
+        tags: ["zephyr-checkout:latest"],
+        push: false,
+        exports: [{ cacheonly: {} }],
     }, { retainOnDelete: true });
-    checkoutImageRef = checkoutImage.id;
+    checkoutImageRef = checkoutImage.ref;
 } else {
     const checkoutRegistryImage = docker.getRegistryImage({
         name: "public.ecr.aws/aws-containers/retail-store-sample-checkout:0.2.0",
@@ -154,19 +150,18 @@ if (checkoutFlag == "build") {
 // Build orders image or pull remote image, depending on value of ordersFlag
 var ordersImageRef: pulumi.Input<string>;
 if (ordersFlag == "build") {
-    const ordersImage = new docker.Image("orders-image", {
-        build: {
-            args: {
-                "JAR_PATH": "target/orders-0.0.1-SNAPSHOT.jar",
-            },
-            context: `${srcRepoPath}/src/orders`,
-            dockerfile: `${srcRepoPath}/src/orders/Dockerfile`,
-            platform: imagePlatform,
+    const ordersImage = new dockerbuild.Image("orders-image", {
+        buildArgs: {
+            "JAR_PATH": "target/orders-0.0.1-SNAPSHOT.jar",
         },
-        imageName: "zephyr-orders:latest",
-        skipPush: true,
+        context: { location: `${srcRepoPath}/src/orders` },
+        dockerfile: { location: `${srcRepoPath}/src/orders/Dockerfile` },
+        platforms: [imagePlatform],
+        tags: ["zephyr-orders:latest"],
+        push: false,
+        exports: [{ cacheonly: {} }],
     }, { retainOnDelete: true });
-    ordersImageRef = ordersImage.id;
+    ordersImageRef = ordersImage.ref;
 } else {
     const ordersRegistryImage = docker.getRegistryImage({
         name: "public.ecr.aws/aws-containers/retail-store-sample-orders:0.2.0",
@@ -453,7 +448,7 @@ const uiContainer = new docker.Container("ui", {
         "ENDPOINTS_ASSETS=http://assets:8080",
     ],
     hostname: "ui",
-    image: uiImage.id,
+    image: uiImage.ref,
     memory: 256,
     name: "ui",
     networksAdvanced: [
